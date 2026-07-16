@@ -34,7 +34,7 @@ const securityBadges = ["GSMA Certified", "ISO 27001", "PCI DSS Level 1"]
 </script>
 
 <template>
-  <section class="py-20 md:py-28 bg-card border-y border-border">
+  <section id="trust" class="py-20 md:py-28 bg-card border-y border-border">
     <div class="max-w-6xl mx-auto px-5">
 
       <div class="text-center mb-14">

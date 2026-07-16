@@ -2,7 +2,7 @@
 const footerLinks = [
   {
     heading: "Platform",
-    links: ["How it works", "Campaigns", "Savings groups", "Micro loans", "Send money"],
+    links: ["How it works", "Savings groups", "Micro loans", "Send money"],
   },
   {
     heading: "Support",

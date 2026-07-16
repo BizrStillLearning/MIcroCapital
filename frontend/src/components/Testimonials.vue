@@ -1,5 +1,10 @@
 <script setup>
-import { Star } from '@lucide/vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { Star, X } from '@lucide/vue'
+
+const isVisible = ref(true)
+const currentIndex = ref(0)
+let intervalId = null
 
 const testimonials = [
   {
@@ -24,64 +29,73 @@ const testimonials = [
     role: "Community Organizer"
   }
 ]
+
+const currentTestimonial = computed(() => testimonials[currentIndex.value])
+
+onMounted(() => {
+  intervalId = setInterval(() => {
+    isVisible.value = false
+    setTimeout(() => {
+      currentIndex.value = (currentIndex.value + 1) % testimonials.length
+      isVisible.value = true
+    }, 500)
+  }, 5000)
+})
+
+onUnmounted(() => {
+  if (intervalId) clearInterval(intervalId)
+})
 </script>
 
 <template>
-  <section id="community" class="py-20 md:py-28">
-    <div class="max-w-6xl mx-auto px-5">
+  <Transition
+      enter-active-class="transition duration-500 ease-out"
+      enter-from-class="transform translate-y-10 opacity-0"
+      enter-to-class="transform translate-y-0 opacity-100"
+      leave-active-class="transition duration-300 ease-in"
+      leave-from-class="transform translate-y-0 opacity-100"
+      leave-to-class="transform translate-y-10 opacity-0"
+  >
+    <div
+        v-if="isVisible"
+        class="fixed z-30 bottom-4 left-4 right-4 sm:right-auto sm:bottom-6 sm:left-6 w-auto sm:w-[320px]"
+    >
+      <div class="bg-card border border-border rounded-2xl p-4 shadow-2xl shadow-black/10 relative group">
 
-      <div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
-        <div>
-          <p class="text-xs font-bold tracking-widest text-accent uppercase mb-3" style="font-family: 'DM Mono', monospace;">
-            Real stories
-          </p>
-          <h2 class="text-3xl md:text-4xl font-bold text-foreground" style="font-family: 'Fraunces', serif;">
-            Lives changed,<br />communities built.
-          </h2>
-        </div>
-
-        <div class="flex items-center gap-1">
-          <Star v-for="n in 5" :key="n" :size="16" class="fill-accent text-accent" />
-          <span class="text-sm text-muted-foreground ml-2" style="font-family: 'DM Mono', monospace;">
-            4.9 / 5 · 6,200 reviews
-          </span>
-        </div>
-      </div>
-
-      <div class="grid md:grid-cols-3 gap-6">
-        <div
-            v-for="(t, i) in testimonials"
-            :key="i"
-            class="bg-card border border-border rounded-2xl p-6 hover:shadow-lg hover:shadow-black/5 transition-all"
+        <button
+            @click="isVisible = false"
+            class="absolute top-3 right-3 text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted p-1 rounded-full transition-colors opacity-0 group-hover:opacity-100"
         >
-          <div class="flex items-center gap-1 mb-4">
-            <Star v-for="n in t.rating" :key="n" :size="13" class="fill-accent text-accent" />
-          </div>
+          <X :size="14" />
+        </button>
 
-          <p class="text-sm text-foreground leading-relaxed mb-5 italic" style="font-family: 'Fraunces', serif;">
-            "{{ t.text }}"
-          </p>
+        <div class="flex items-start gap-3">
+          <img
+              :src="`https://images.unsplash.com/${currentTestimonial.image}?w=50&h=50&fit=crop&auto=format`"
+              :alt="currentTestimonial.name"
+              class="w-10 h-10 rounded-full object-cover border border-primary/20 flex-shrink-0"
+          />
 
-          <div class="flex items-center gap-3">
-            <img
-                :src="`https://images.unsplash.com/${t.image}?w=60&h=60&fit=crop&auto=format`"
-                :alt="t.name"
-                class="w-10 h-10 rounded-full object-cover border-2 border-primary/20"
-            />
-            <div>
-              <p class="text-sm font-semibold text-foreground" style="font-family: 'Fraunces', serif;">
-                {{ t.name }}
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between mb-1 pr-6">
+              <p class="text-sm font-bold text-foreground truncate" style="font-family: 'Fraunces', serif;">
+                {{ currentTestimonial.name }}
               </p>
-              <p class="text-xs text-muted-foreground" style="font-family: 'DM Mono', monospace;">
-                {{ t.role }}
-              </p>
+              <div class="flex items-center flex-shrink-0">
+                <Star v-for="n in currentTestimonial.rating" :key="n" :size="10" class="fill-accent text-accent" />
+              </div>
             </div>
+
+            <p class="text-xs text-muted-foreground mb-2" style="font-family: 'DM Mono', monospace;">
+              {{ currentTestimonial.role }}
+            </p>
+
+            <p class="text-xs text-foreground leading-relaxed italic line-clamp-3" style="font-family: 'DM Sans', sans-serif;">
+              "{{ currentTestimonial.text }}"
+            </p>
           </div>
         </div>
       </div>
-
     </div>
-  </section>
+  </Transition>
 </template>
-
-
