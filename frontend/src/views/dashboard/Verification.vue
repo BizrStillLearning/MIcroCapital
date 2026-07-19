@@ -1,67 +1,80 @@
 <script setup>
-import { ShieldAlert, Check, X, Search, FileText } from '@lucide/vue'
+import { onMounted, computed } from 'vue'
+import { UserCheck, Clock, Search, ShieldCheck } from '@lucide/vue'
+import { useAgentStore } from '../../stores/agentStore'
 
-const pendingUsers = [
-  { id: 1, name: "Ibu Siti Rohmah", phone: "+62 852 1122 3344", requestDate: "Hari ini, 08:15", idNumber: "3578123456780001" },
-  { id: 2, name: "Bapak Yanto", phone: "+62 813 9988 7766", requestDate: "Kemarin, 16:30", idNumber: "3578987654320002" }
-]
+const agentStore = useAgentStore()
+const unverifiedUsers = computed(() => agentStore.unverifiedUsers)
+
+onMounted(() => {
+  agentStore.fetchUnverifiedUsers()
+})
+
+const handleVerify = async (userId, name) => {
+  const confirmVerify = confirm(`Pastikan wajah dan KTP ${name} sudah sesuai. Lanjutkan verifikasi?`)
+  if (!confirmVerify) return
+
+  const success = await agentStore.verifyUser(userId)
+  if (success) {
+    alert(`Verifikasi ${name} berhasil!`)
+  } else {
+    alert(agentStore.error)
+  }
+}
 </script>
 
 <template>
   <div class="space-y-6 max-w-5xl mx-auto">
-
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-foreground" style="font-family: 'Fraunces', serif;">
-          Verifikasi Identitas Warga
-        </h1>
-        <p class="text-sm text-muted-foreground mt-1" style="font-family: 'DM Sans', sans-serif;">
-          Pastikan wajah warga sesuai dengan dokumen identitas asli mereka.
-        </p>
+        <h1 class="text-2xl font-bold text-foreground" style="font-family: 'Fraunces', serif;">Verifikasi Identitas (KYC)</h1>
+        <p class="text-sm text-muted-foreground mt-1">Cocokkan KTP fisik warga sebelum membuka akses finansial mereka.</p>
       </div>
-
-      <div class="bg-amber-100 text-amber-700 px-4 py-2 rounded-xl text-sm font-bold border border-amber-200 flex items-center gap-2">
-        <ShieldAlert :size="18" />
-        {{ pendingUsers.length }} Menunggu Verifikasi
+      <div class="relative w-full sm:w-64">
+        <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" :size="16" />
+        <input type="text" placeholder="Cari nama warga..." class="w-full bg-card border border-border rounded-lg py-2 pl-9 pr-4 text-sm focus:border-primary" />
       </div>
     </div>
 
-    <div class="relative max-w-md">
-      <Search class="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" :size="18" />
-      <input type="text" placeholder="Cari nama atau NIK..." class="w-full bg-card border border-border rounded-xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:border-primary transition-colors shadow-sm" />
+    <div v-if="unverifiedUsers.length === 0" class="text-center py-20 bg-card border border-border rounded-3xl shadow-sm">
+      <ShieldCheck class="mx-auto text-green-500 mb-4" :size="48" />
+      <h3 class="text-lg font-bold text-foreground">Semua Warga Terverifikasi</h3>
+      <p class="text-sm text-muted-foreground mt-1">Tidak ada antrean verifikasi saat ini.</p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-      <div v-for="user in pendingUsers" :key="user.id" class="bg-card border border-border rounded-3xl p-6 shadow-sm flex flex-col justify-between">
-
-        <div class="flex items-start justify-between mb-6">
-          <div>
-            <h3 class="font-bold text-lg text-foreground mb-1">{{ user.name }}</h3>
-            <p class="text-sm text-muted-foreground font-medium" style="font-family: 'DM Mono', monospace;">{{ user.phone }}</p>
-          </div>
-          <span class="text-xs text-muted-foreground">{{ user.requestDate }}</span>
-        </div>
-
-        <div class="bg-muted/30 p-4 rounded-xl border border-border/50 mb-6 flex items-center gap-3">
-          <FileText :size="24" class="text-primary opacity-70" />
-          <div>
-            <p class="text-xs text-muted-foreground mb-0.5">Nomor Identitas (NIK)</p>
-            <p class="text-sm font-bold font-mono tracking-widest text-foreground">{{ user.idNumber }}</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3 mt-auto">
-          <button class="flex items-center justify-center gap-2 bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors">
-            <X :size="18" /> Tolak
-          </button>
-          <button class="flex items-center justify-center gap-2 bg-primary text-primary-foreground py-2.5 rounded-xl text-sm font-bold hover:opacity-90 shadow-md transition-all">
-            <Check :size="18" /> Verifikasi
-          </button>
-        </div>
-
-      </div>
-
+    <div v-else class="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-muted/50 border-b border-border">
+        <tr>
+          <th class="p-4 font-bold text-muted-foreground">ID</th>
+          <th class="p-4 font-bold text-muted-foreground">Nama Lengkap (Sesuai KTP)</th>
+          <th class="p-4 font-bold text-muted-foreground">Nomor Telepon</th>
+          <th class="p-4 font-bold text-muted-foreground">Status</th>
+          <th class="p-4 font-bold text-muted-foreground text-right">Aksi</th>
+        </tr>
+        </thead>
+        <tbody class="divide-y divide-border">
+        <tr v-for="user in unverifiedUsers" :key="user.id" class="hover:bg-muted/20 transition-colors">
+          <td class="p-4" style="font-family: 'DM Mono', monospace;">#{{ user.id }}</td>
+          <td class="p-4 font-bold">{{ user.name }}</td>
+          <td class="p-4">{{ user.phone }}</td>
+          <td class="p-4">
+              <span class="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2.5 py-1 rounded-md text-xs font-bold">
+                <Clock :size="14" /> Menunggu Fisik
+              </span>
+          </td>
+          <td class="p-4 text-right">
+            <button
+                @click="handleVerify(user.id, user.name)"
+                :disabled="agentStore.isLoading"
+                class="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-xs hover:opacity-90 transition-opacity flex items-center justify-end gap-2 ml-auto"
+            >
+              <UserCheck :size="16" /> Verifikasi Warga
+            </button>
+          </td>
+        </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>

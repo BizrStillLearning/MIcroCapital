@@ -1,8 +1,8 @@
 <script setup>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, ArrowRight, User, Smartphone, Lock } from '@lucide/vue'
-import { useAuthStore } from '../stores/auth.js'
+import { useAuthStore } from '../stores/authStore.js'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -13,10 +13,33 @@ const form = reactive({
   pin: ''
 })
 
-const handleSignUp = () => {
-  console.log('Register attempt:', form)
-  authStore.login()
-  router.push('/dashboard')
+const errorMessage = ref('')
+const successMessage = ref('')
+
+const handleSignUp = async () => {
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  if (!form.name || !form.phone || !form.pin) {
+    errorMessage.value = 'Semua kolom wajib diisi'
+    return
+  }
+
+  if (form.pin.length < 4) {
+    errorMessage.value = 'PIN minimal 4 digit'
+    return
+  }
+
+  const result = await authStore.register(form.name, form.phone, form.pin)
+
+  if (result.success) {
+    successMessage.value = result.message || 'Pendaftaran berhasil!'
+    setTimeout(() => {
+      router.push('/signin')
+    }, 2000)
+  } else {
+    errorMessage.value = authStore.error
+  }
 }
 </script>
 
@@ -51,6 +74,13 @@ const handleSignUp = () => {
           <p class="text-muted-foreground text-sm">Hanya butuh nomor telepon untuk memulai.</p>
         </div>
 
+        <div v-if="errorMessage" class="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-sm font-bold border border-red-200">
+          {{ errorMessage }}
+        </div>
+        <div v-if="successMessage" class="bg-green-50 text-green-700 p-4 rounded-xl mb-6 text-sm font-bold border border-green-200">
+          {{ successMessage }} Mengalihkan ke halaman masuk...
+        </div>
+
         <form @submit.prevent="handleSignUp" class="space-y-5">
           <div class="space-y-1.5">
             <label class="text-sm font-semibold text-foreground" style="font-family: 'DM Mono', monospace;">Nama Lengkap</label>
@@ -64,7 +94,7 @@ const handleSignUp = () => {
             <label class="text-sm font-semibold text-foreground" style="font-family: 'DM Mono', monospace;">Nomor Telepon</label>
             <div class="relative">
               <Smartphone class="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" :size="18" />
-              <input v-model="form.phone" type="tel" placeholder="+62 812 3456 7890" class="w-full bg-card border border-border rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" required />
+              <input v-model="form.phone" type="tel" placeholder="081234567890" class="w-full bg-card border border-border rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" required />
             </div>
           </div>
 
@@ -76,8 +106,8 @@ const handleSignUp = () => {
             </div>
           </div>
 
-          <button type="submit" class="w-full bg-primary text-primary-foreground font-semibold py-3.5 rounded-xl hover:opacity-90 hover:shadow-lg transition-all flex items-center justify-center gap-2 mt-2">
-            Buat Akun <ArrowRight :size="18" />
+          <button type="submit" :disabled="authStore.isLoading || successMessage !== ''" class="w-full bg-primary text-primary-foreground font-semibold py-3.5 rounded-xl hover:opacity-90 hover:shadow-lg transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            {{ authStore.isLoading ? 'Memproses...' : 'Buat Akun' }} <ArrowRight v-if="!authStore.isLoading" :size="18" />
           </button>
         </form>
 

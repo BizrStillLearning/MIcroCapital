@@ -132,3 +132,4 @@ const recentActivities = [
     </div>
   </div>
 </template>
+

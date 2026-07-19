@@ -1,8 +1,8 @@
 <script setup>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, ArrowRight, Smartphone, Lock } from '@lucide/vue'
-import { useAuthStore } from '../stores/auth.js'
+import { useAuthStore } from '../stores/authStore.js'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -12,9 +12,30 @@ const form = reactive({
   pin: ''
 })
 
-const handleSignIn = () => {
-  localStorage.setItem('dummy_token', '123456789')
-  router.push('/dashboard')
+const errorMessage = ref('')
+
+const handleSignIn = async () => {
+  errorMessage.value = ''
+
+  if (!form.phone || !form.pin) {
+    errorMessage.value = 'Nomor telepon dan PIN wajib diisi'
+    return
+  }
+
+  const success = await authStore.login(form.phone, form.pin)
+
+  if (success) {
+    const role = authStore.userRole
+    if (role === 'admin') {
+      router.push('/dashboard/admin')
+    } else if (role === 'agent') {
+      router.push('/dashboard/agent')
+    } else {
+      router.push('/dashboard')
+    }
+  } else {
+    errorMessage.value = authStore.error
+  }
 }
 </script>
 
@@ -49,12 +70,16 @@ const handleSignIn = () => {
           <p class="text-muted-foreground text-sm">Masukkan nomor telepon dan PIN Anda.</p>
         </div>
 
+        <div v-if="errorMessage" class="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-sm font-bold border border-red-200">
+          {{ errorMessage }}
+        </div>
+
         <form @submit.prevent="handleSignIn" class="space-y-5">
           <div class="space-y-1.5">
             <label class="text-sm font-semibold text-foreground" style="font-family: 'DM Mono', monospace;">Nomor Telepon</label>
             <div class="relative">
               <Smartphone class="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" :size="18" />
-              <input v-model="form.phone" type="tel" placeholder="+62 812 3456 7890" class="w-full bg-card border border-border rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" required />
+              <input v-model="form.phone" type="tel" placeholder="081234567890" class="w-full bg-card border border-border rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" required />
             </div>
           </div>
 
@@ -69,8 +94,8 @@ const handleSignIn = () => {
             </div>
           </div>
 
-          <button type="submit" class="w-full bg-primary text-primary-foreground font-semibold py-3.5 rounded-xl hover:opacity-90 hover:shadow-lg transition-all flex items-center justify-center gap-2 mt-2">
-            Masuk <ArrowRight :size="18" />
+          <button type="submit" :disabled="authStore.isLoading" class="w-full bg-primary text-primary-foreground font-semibold py-3.5 rounded-xl hover:opacity-90 hover:shadow-lg transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            {{ authStore.isLoading ? 'Memproses...' : 'Masuk' }} <ArrowRight v-if="!authStore.isLoading" :size="18" />
           </button>
         </form>
 
@@ -82,3 +107,4 @@ const handleSignIn = () => {
     </div>
   </div>
 </template>
+

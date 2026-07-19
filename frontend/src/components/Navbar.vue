@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Menu, X, Shield, Sparkles, Home, Layers } from '@lucide/vue'
-import { useAuthStore } from '../stores/auth.js'
+import { useAuthStore } from '../stores/authStore.js'
 
 const router = useRouter()
 const authStore = useAuthStore()

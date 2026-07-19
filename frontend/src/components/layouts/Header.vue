@@ -1,11 +1,25 @@
 <script setup>
 import { Menu, PanelLeftClose, PanelLeftOpen, Bell } from '@lucide/vue'
+import { computed } from 'vue'
+import { useAuthStore } from "../../stores/authStore.js"
+
+const authStore = useAuthStore()
+const user = computed(() => authStore.user || {})
 
 const props = defineProps({
   isCollapsed: Boolean
 })
 
 const emit = defineEmits(['toggleCollapse', 'toggleMobile'])
+
+const getInitials = (name) => {
+  if (!name) return 'U'
+  const names = name.split(' ')
+  if (names.length >= 2) {
+    return (names[0][0] + names[1][0]).toUpperCase()
+  }
+  return name.substring(0, 2).toUpperCase()
+}
 </script>
 
 <template>
@@ -36,12 +50,15 @@ const emit = defineEmits(['toggleCollapse', 'toggleMobile'])
       </button>
 
       <div class="flex items-center gap-3 cursor-pointer p-1 pr-2 rounded-full hover:bg-muted transition-colors border border-transparent hover:border-border">
-        <img src="https://i.pravatar.cc/150?img=32" alt="User avatar" class="w-8 h-8 rounded-full border border-border" />
+        <div class="w-10 h-10 bg-primary/10 text-primary font-bold rounded-full flex items-center justify-center">
+          {{ getInitials(user.name) }}
+        </div>
         <div class="hidden sm:block text-left">
-          <p class="text-sm font-semibold text-foreground leading-none">Grace O.</p>
+          <p class="text-sm font-bold text-foreground">{{ user.name || 'Pengguna' }}</p>
+          <p class="text-xs text-muted-foreground capitalize">{{ user.role || 'Member' }}</p>
         </div>
       </div>
     </div>
-
   </header>
 </template>
+

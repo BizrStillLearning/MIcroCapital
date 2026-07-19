@@ -1,4 +1,5 @@
 <script setup>
+import { computed,ref } from 'vue'
 import {
   ArrowUpRight,
   ArrowDownLeft,
@@ -7,8 +8,22 @@ import {
   History,
   ChevronRight
 } from '@lucide/vue'
+import { useAuthStore } from '../../stores/authStore.js'
+import { useTransactionStore } from '../../stores/transactionStore'
 
-const balance = "Rp 1.250.000"
+const authStore = useAuthStore()
+const transactionStore = useTransactionStore()
+
+const user = computed(() => authStore.user || {})
+
+const formatRupiah = (angka) => {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0
+  }).format(angka || 0)
+}
+
 const activeCampaign = {
   title: "Perbaikan Atap Warung Bu Siti",
   raised: 850000,
@@ -21,6 +36,22 @@ const recentTransactions = [
   { id: 2, type: 'out', title: 'Mendanai: Kebun Sayur', date: 'Kemarin, 14:15', amount: '- Rp 150.000' },
   { id: 3, type: 'out', title: 'Iuran Tabungan Kelompok', date: '12 Jul, 10:00', amount: '- Rp 50.000' },
 ]
+
+const isTopUpModalOpen = ref(false)
+const topUpAmount = ref('')
+
+const handleTopUp = async () => {
+  if (!topUpAmount.value || topUpAmount.value <= 0) return
+
+  const success = await transactionStore.topUp(user.value.phone, Number(topUpAmount.value))
+  if (success) {
+    isTopUpModalOpen.value = false
+    topUpAmount.value = ''
+    alert("Isi saldo berhasil!")
+  } else {
+    alert(transactionStore.error)
+  }
+}
 </script>
 
 <template>
@@ -28,11 +59,15 @@ const recentTransactions = [
 
     <div>
       <h1 class="text-2xl font-bold text-foreground" style="font-family: 'Fraunces', serif;">
-        Selamat datang, Grace!
+        Selamat datang, {{ user.name }}!
       </h1>
       <p class="text-sm text-muted-foreground mt-1" style="font-family: 'DM Sans', sans-serif;">
         Berikut adalah ringkasan aktivitas keuangan Anda hari ini.
       </p>
+      <h2 class="text-4xl sm:text-5xl font-bold mb-8" style="font-family: 'Fraunces', serif;">
+        {{ formatRupiah(user.balance) }}
+      </h2>
+
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -53,7 +88,7 @@ const recentTransactions = [
             </h2>
 
             <div class="flex flex-wrap gap-3">
-              <button class="flex items-center gap-2 bg-white text-primary px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors shadow-sm">
+              <button @click="isTopUpModalOpen = true" class="flex items-center gap-2 bg-white text-primary px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors shadow-sm">
                 <ArrowDownLeft :size="18" />
                 Isi Saldo
               </button>
@@ -146,4 +181,18 @@ const recentTransactions = [
       </div>
     </div>
   </div>
+
+  <Transition enter-active-class="transition-opacity duration-300" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition-opacity duration-300" leave-from-class="opacity-100" leave-to-class="opacity-0">
+    <div v-if="isTopUpModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isTopUpModalOpen = false"></div>
+      <div class="bg-card border border-border rounded-3xl w-full max-w-sm shadow-2xl relative z-10 p-6">
+        <h2 class="text-xl font-bold mb-4" style="font-family: 'Fraunces', serif;">Simulasi Top-Up Saldo</h2>
+        <input v-model="topUpAmount" type="number" placeholder="Nominal (contoh: 50000)" class="w-full bg-muted/30 border border-border rounded-xl py-3 px-4 text-sm mb-4" />
+        <button @click="handleTopUp" :disabled="transactionStore.isLoading" class="w-full bg-primary text-white py-3 rounded-xl font-bold">
+          {{ transactionStore.isLoading ? 'Memproses...' : 'Konfirmasi Top-Up' }}
+        </button>
+      </div>
+    </div>
+  </Transition>
 </template>
+

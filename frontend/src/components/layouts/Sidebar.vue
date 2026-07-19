@@ -1,9 +1,11 @@
 <script setup>
+import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { LogOut, X } from '@lucide/vue'
 import { getAsideMenu } from '../../config/menuSidebar.js'
+import { useAuthStore } from "../../stores/authStore.js"
 
-const sidebarLinks = getAsideMenu('member')
+const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -13,6 +15,10 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['closeMobile'])
+
+const sidebarLinks = computed(() => {
+  return getAsideMenu(authStore.userRole)
+})
 
 const navigateTo = (path) => {
   router.push(path)

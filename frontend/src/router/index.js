@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import {useAuthStore} from "../stores/authStore.js";
 import DashboardLayout from '../components/layouts/DashboardLayout.vue'
 
 import Home from '../views/Home.vue'
@@ -16,6 +17,7 @@ import CashManagement from "../views/dashboard/CashManagement.vue";
 import AgentOverview from "../views/dashboard/AgentOverview.vue";
 import AdminOverview from "../views/dashboard/AdminOverview.vue";
 import AdminAgents from "../views/dashboard/AdminAgents.vue";
+import AdminLogin from "../views/AdminLogin.vue";
 
 const isAuthenticated = () => {
     return localStorage.getItem('dummy_token') !== null
@@ -25,7 +27,8 @@ const routes = [
     { path: '/', component: Home, name: 'Home' },
     { path: '/signin', component: SignIn, name: 'SignIn' },
     { path: '/signup', component: SignUp, name: 'SignUp' },
-
+    {path: '/admin/login', component: AdminLogin, name: 'AdminLogin'
+    },
     {
         path: '/dashboard',
         component: DashboardLayout,
@@ -97,9 +100,11 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-    if (to.meta.requiresAuth && !isAuthenticated()) {
+    const authStore = useAuthStore()
+
+    if (to.meta.requiresAuth && !authStore.isAuthenticated) {
         next('/signin')
-    } else if ((to.path === '/signin' || to.path === '/signup') && isAuthenticated()) {
+    } else if ((to.path === '/signin' || to.path === '/signup') && authStore.isAuthenticated) {
         next('/dashboard')
     } else {
         next()
@@ -107,5 +112,3 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router
-
-

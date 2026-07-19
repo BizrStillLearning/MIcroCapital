@@ -1,104 +1,62 @@
 <script setup>
-import {
-  BarChart3,
-  TrendingUp,
-  AlertTriangle,
-  Activity,
-  ArrowUpRight
-} from '@lucide/vue'
+import { onMounted, computed } from 'vue'
+import { Users, ShieldCheck, Activity, BarChart4 } from '@lucide/vue'
+import { useAdminStore } from '../../stores/adminStore'
+import { useAuthStore } from '../../stores/authStore'
 
-const platformStats = [
-  { label: "VOLUME TRANSAKSI (30 HARI)", value: "Rp 1.25M", trend: "+12.5%", isPositive: true },
-  { label: "PENDAPATAN PLATFORM (FEE)", value: "Rp 12.500.000", trend: "+8.2%", isPositive: true },
-  { label: "KREDIT MACET (NPL)", value: "1.2%", trend: "-0.4%", isPositive: true }, // NPL turun berarti bagus
-]
+const adminStore = useAdminStore()
+const authStore = useAuthStore()
 
-const systemLogs = [
-  { id: 1, action: "Pencairan Urun Dana 'Desa Makmur' otomatis dieksekusi", time: "10 menit lalu", type: "info" },
-  { id: 2, action: "Lonjakan pendaftaran (50+ user) terdeteksi di Region Jatim", time: "1 jam lalu", type: "warning" },
-  { id: 3, action: "Agen 'Budi Toko' disetujui oleh Super Admin", time: "3 jam lalu", type: "success" },
-]
+const analytics = computed(() => adminStore.analytics)
+const adminName = computed(() => authStore.user?.name || 'Administrator')
+
+onMounted(() => {
+  adminStore.fetchAnalytics()
+})
+
+const formatRupiah = (angka) => {
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka || 0)
+}
 </script>
 
 <template>
-  <div class="space-y-6 max-w-7xl mx-auto">
-
-    <div>
-      <h1 class="text-2xl font-bold text-foreground" style="font-family: 'Fraunces', serif;">
-        Dasbor Super Admin
-      </h1>
-      <p class="text-sm text-muted-foreground mt-1" style="font-family: 'DM Sans', sans-serif;">
-        Pantau kesehatan finansial platform dan aktivitas sistem secara *real-time*.
-      </p>
+  <div class="space-y-6 max-w-6xl mx-auto">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-foreground" style="font-family: 'Fraunces', serif;">Pusat Kendali Sistem</h1>
+        <p class="text-sm text-muted-foreground mt-1">Selamat bertugas, {{ adminName }}. Berikut adalah metrik likuiditas platform saat ini.</p>
+      </div>
+      <button class="bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:opacity-90">
+        <BarChart4 :size="16" /> Unduh Laporan
+      </button>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div
-          v-for="stat in platformStats"
-          :key="stat.label"
-          class="bg-card border border-border rounded-3xl p-6 shadow-sm flex flex-col justify-between"
-      >
-        <p class="text-xs font-bold text-muted-foreground tracking-wider mb-2" style="font-family: 'DM Mono', monospace;">
-          {{ stat.label }}
-        </p>
-        <div class="flex items-end justify-between">
-          <h2 class="text-3xl font-bold text-foreground" style="font-family: 'Fraunces', serif;">
-            {{ stat.value }}
-          </h2>
-          <span
-              class="text-xs font-bold px-2 py-1 rounded-md"
-              :class="stat.isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
-          >
-            {{ stat.trend }}
-          </span>
-        </div>
-      </div>
-    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-      <div class="lg:col-span-2 bg-card border border-border rounded-3xl p-6 shadow-sm flex flex-col">
-        <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-bold text-foreground" style="font-family: 'Fraunces', serif;">Pertumbuhan Arus Kas</h3>
-          <div class="flex gap-2">
-            <span class="flex items-center gap-1.5 text-xs font-bold text-muted-foreground"><span class="w-3 h-3 rounded-sm bg-primary"></span> Cash In</span>
-            <span class="flex items-center gap-1.5 text-xs font-bold text-muted-foreground"><span class="w-3 h-3 rounded-sm bg-accent"></span> Cash Out</span>
-          </div>
-        </div>
-
-        <div class="flex-1 flex items-end justify-between gap-2 mt-4 pt-10 border-b border-border/50 pb-2 relative h-48">
-          <div v-for="i in 7" :key="i" class="w-full flex flex-col justify-end gap-1 group">
-            <div class="w-full bg-accent rounded-t-sm transition-all duration-500 hover:opacity-80" :style="`height: ${Math.floor(Math.random() * 40 + 20)}%`"></div>
-            <div class="w-full bg-primary rounded-t-sm transition-all duration-500 hover:opacity-80" :style="`height: ${Math.floor(Math.random() * 60 + 40)}%`"></div>
-          </div>
-        </div>
-        <div class="flex justify-between mt-2 text-xs text-muted-foreground font-medium" style="font-family: 'DM Mono', monospace;">
-          <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
-        </div>
+      <div class="bg-primary text-primary-foreground rounded-3xl p-6 shadow-md relative overflow-hidden lg:col-span-2 flex flex-col justify-center">
+        <Activity class="absolute -right-5 -bottom-5 text-white/10" :size="120" />
+        <p class="text-sm font-medium opacity-80 mb-2" style="font-family: 'DM Mono', monospace;">TOTAL LIKUIDITAS TERSALURKAN</p>
+        <h2 class="text-4xl font-bold tracking-tight relative z-10" style="font-family: 'Fraunces', serif;">
+          {{ formatRupiah(analytics.total_funded_amount) }}
+        </h2>
       </div>
 
-      <div class="bg-card border border-border rounded-3xl p-6 shadow-sm flex flex-col">
-        <div class="flex items-center gap-2 mb-6">
-          <Activity :size="20" class="text-muted-foreground" />
-          <h3 class="font-bold text-foreground text-lg" style="font-family: 'Fraunces', serif;">Log Sistem</h3>
+      <!-- Total Anggota Komunitas -->
+      <div class="bg-card border border-border rounded-3xl p-6 shadow-sm flex flex-col justify-center">
+        <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
+          <Users :size="20" />
         </div>
-
-        <div class="flex-1 space-y-4">
-          <div v-for="log in systemLogs" :key="log.id" class="flex gap-3">
-            <div class="mt-1">
-              <div v-if="log.type === 'info'" class="w-2 h-2 rounded-full bg-blue-500"></div>
-              <div v-else-if="log.type === 'warning'" class="w-2 h-2 rounded-full bg-amber-500"></div>
-              <div v-else class="w-2 h-2 rounded-full bg-green-500"></div>
-            </div>
-            <div>
-              <p class="text-sm font-medium text-foreground leading-snug">{{ log.action }}</p>
-              <p class="text-xs text-muted-foreground mt-1">{{ log.time }}</p>
-            </div>
-          </div>
-        </div>
-        <button class="mt-4 text-xs font-bold text-primary hover:underline text-left" style="font-family: 'DM Mono', monospace;">Lihat Semua Log &rarr;</button>
+        <p class="text-xs text-muted-foreground font-bold mb-1" style="font-family: 'DM Mono', monospace;">ANGGOTA AKTIF</p>
+        <h3 class="text-3xl font-bold text-foreground">{{ analytics.total_users }}</h3>
       </div>
 
+      <div class="bg-card border border-border rounded-3xl p-6 shadow-sm flex flex-col justify-center">
+        <div class="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center mb-4">
+          <ShieldCheck :size="20" />
+        </div>
+        <p class="text-xs text-muted-foreground font-bold mb-1" style="font-family: 'DM Mono', monospace;">AGEN LOKAL</p>
+        <h3 class="text-3xl font-bold text-foreground">{{ analytics.total_agents }}</h3>
+      </div>
     </div>
   </div>
 </template>
