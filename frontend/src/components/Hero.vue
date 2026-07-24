@@ -48,7 +48,6 @@ onUnmounted(() => {
         />
       </Transition>
 
-      <!-- Pembaruan Gradien Overlay untuk Visibilitas Gambar Maksimal -->
       <div class="absolute inset-0 bg-background/70 md:bg-gradient-to-r md:from-background/95 md:via-background/50 md:to-transparent backdrop-blur-[1px]"></div>
     </div>
 

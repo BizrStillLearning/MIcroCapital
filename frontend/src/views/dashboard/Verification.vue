@@ -1,80 +1,113 @@
 <script setup>
-import { onMounted, computed } from 'vue'
-import { UserCheck, Clock, Search, ShieldCheck } from '@lucide/vue'
-import { useAgentStore } from '../../stores/agentStore'
+import { ref, onMounted } from 'vue'
+import { Users, CheckCircle, Search, XCircle } from '@lucide/vue'
+import apiClient from '../../api/axios'
+import Swal from 'sweetalert2'
 
-const agentStore = useAgentStore()
-const unverifiedUsers = computed(() => agentStore.unverifiedUsers)
+const unverifiedUsers = ref([])
+const isProcessing = ref(false)
+const searchQuery = ref('')
 
-onMounted(() => {
-  agentStore.fetchUnverifiedUsers()
-})
-
-const handleVerify = async (userId, name) => {
-  const confirmVerify = confirm(`Pastikan wajah dan KTP ${name} sudah sesuai. Lanjutkan verifikasi?`)
-  if (!confirmVerify) return
-
-  const success = await agentStore.verifyUser(userId)
-  if (success) {
-    alert(`Verifikasi ${name} berhasil!`)
-  } else {
-    alert(agentStore.error)
+const fetchUnverifiedUsers = async () => {
+  try {
+    const response = await apiClient.get('/agent/unverified-users')
+    unverifiedUsers.value = response.data.data
+  } catch (error) {
+    console.error("Gagal mengambil data pendaftar:", error)
+    Swal.fire('Error', 'Gagal memuat daftar warga', 'error')
   }
 }
+
+const verifyUser = async (user) => {
+  const confirm = await Swal.fire({
+    title: 'Verifikasi Warga?',
+    text: `Apakah Anda sudah memeriksa fisik KTP/Identitas milik ${user.name}?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#10b981',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'Ya, Verifikasi'
+  })
+
+  if (confirm.isConfirmed) {
+    isProcessing.value = true
+    try {
+      const response = await apiClient.post(`/agent/verify/${user.id}`)
+      Swal.fire('Berhasil!', response.data.message, 'success')
+
+      unverifiedUsers.value = unverifiedUsers.value.filter(u => u.id !== user.id)
+    } catch (error) {
+      Swal.fire('Gagal', error.response?.data?.error || 'Gagal memverifikasi', 'error')
+    } finally {
+      isProcessing.value = false
+    }
+  }
+}
+
+onMounted(() => {
+  fetchUnverifiedUsers()
+})
 </script>
 
 <template>
-  <div class="space-y-6 max-w-5xl mx-auto">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-foreground" style="font-family: 'Fraunces', serif;">Verifikasi Identitas (KYC)</h1>
-        <p class="text-sm text-muted-foreground mt-1">Cocokkan KTP fisik warga sebelum membuka akses finansial mereka.</p>
-      </div>
-      <div class="relative w-full sm:w-64">
-        <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" :size="16" />
-        <input type="text" placeholder="Cari nama warga..." class="w-full bg-card border border-border rounded-lg py-2 pl-9 pr-4 text-sm focus:border-primary" />
-      </div>
+  <div class="space-y-6 max-w-4xl mx-auto">
+    <div>
+      <h1 class="text-2xl font-bold text-foreground" style="font-family: 'Fraunces', serif;">
+        Antrean Verifikasi (KYC)
+      </h1>
+      <p class="text-sm text-muted-foreground mt-1">
+        Lakukan pencocokan identitas fisik (KTP) sebelum menyetujui akun warga.
+      </p>
     </div>
 
-    <div v-if="unverifiedUsers.length === 0" class="text-center py-20 bg-card border border-border rounded-3xl shadow-sm">
-      <ShieldCheck class="mx-auto text-green-500 mb-4" :size="48" />
-      <h3 class="text-lg font-bold text-foreground">Semua Warga Terverifikasi</h3>
-      <p class="text-sm text-muted-foreground mt-1">Tidak ada antrean verifikasi saat ini.</p>
+    <div class="relative w-full max-w-md">
+      <Search class="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" :size="18" />
+      <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Cari nama atau nomor telepon..."
+          class="w-full bg-card border border-border rounded-xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:border-primary transition-colors"
+      />
     </div>
 
-    <div v-else class="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-      <table class="w-full text-left text-sm">
-        <thead class="bg-muted/50 border-b border-border">
-        <tr>
-          <th class="p-4 font-bold text-muted-foreground">ID</th>
-          <th class="p-4 font-bold text-muted-foreground">Nama Lengkap (Sesuai KTP)</th>
-          <th class="p-4 font-bold text-muted-foreground">Nomor Telepon</th>
-          <th class="p-4 font-bold text-muted-foreground">Status</th>
-          <th class="p-4 font-bold text-muted-foreground text-right">Aksi</th>
-        </tr>
-        </thead>
-        <tbody class="divide-y divide-border">
-        <tr v-for="user in unverifiedUsers" :key="user.id" class="hover:bg-muted/20 transition-colors">
-          <td class="p-4" style="font-family: 'DM Mono', monospace;">#{{ user.id }}</td>
-          <td class="p-4 font-bold">{{ user.name }}</td>
-          <td class="p-4">{{ user.phone }}</td>
-          <td class="p-4">
-              <span class="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2.5 py-1 rounded-md text-xs font-bold">
-                <Clock :size="14" /> Menunggu Fisik
-              </span>
-          </td>
-          <td class="p-4 text-right">
+    <div class="bg-card border border-border rounded-3xl p-6 shadow-sm">
+      <div v-if="unverifiedUsers.length === 0" class="text-center py-10 flex flex-col items-center">
+        <CheckCircle :size="48" class="text-green-500 mb-4 opacity-50" />
+        <h3 class="font-bold text-foreground">Semua Bersih!</h3>
+        <p class="text-sm text-muted-foreground">Tidak ada warga yang menunggu verifikasi saat ini.</p>
+      </div>
+
+      <div v-else class="space-y-4">
+        <div
+            v-for="user in unverifiedUsers"
+            :key="user.id"
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 border border-border rounded-2xl bg-muted/20"
+        >
+          <div class="flex gap-4 items-center mb-4 sm:mb-0">
+            <div class="w-12 h-12 bg-accent/10 text-accent rounded-full flex items-center justify-center">
+              <Users :size="24" />
+            </div>
+            <div>
+              <h4 class="font-bold text-foreground">{{ user.name }}</h4>
+              <p class="text-xs text-muted-foreground" style="font-family: 'DM Mono', monospace;">{{ user.phone }}</p>
+              <p class="text-xs text-muted-foreground mt-1">Mendaftar: {{ new Date(user.created_at).toLocaleDateString('id-ID') }}</p>
+            </div>
+          </div>
+
+          <div class="w-full sm:w-auto flex gap-2">
             <button
-                @click="handleVerify(user.id, user.name)"
-                :disabled="agentStore.isLoading"
-                class="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-xs hover:opacity-90 transition-opacity flex items-center justify-end gap-2 ml-auto"
+                @click="verifyUser(user)"
+                :disabled="isProcessing"
+                class="flex-1 sm:flex-none bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
             >
-              <UserCheck :size="16" /> Verifikasi Warga
+              <CheckCircle :size="16" /> Setujui
             </button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
+            <button class="bg-muted text-muted-foreground px-3 py-2.5 rounded-xl hover:bg-muted/80 transition-colors">
+              <XCircle :size="18" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>

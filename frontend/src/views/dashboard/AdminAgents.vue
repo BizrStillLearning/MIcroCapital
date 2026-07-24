@@ -1,11 +1,52 @@
 <script setup>
+import { ref, onMounted, computed } from 'vue'
 import { Search, Filter, CheckCircle, XCircle, MoreVertical } from '@lucide/vue'
+import { useAdminStore } from '../../stores/adminStore'
+import Swal from 'sweetalert2'
 
-const agents = [
-  { id: 1, name: "Bapak Budi Santoso", store: "Toko Makmur", region: "Desa Sukamaju, Jatim", balance: "Rp 5.500.000", status: "Aktif" },
-  { id: 2, name: "Ibu Siti Aminah", store: "Warung Barokah", region: "Desa Karanganyar, Jateng", balance: "Rp 2.100.000", status: "Aktif" },
-  { id: 3, name: "Kang Asep", store: "Koperasi Tani", region: "Desa Cibaduyut, Jabar", balance: "Rp 0", status: "Menunggu" },
-]
+const adminStore = useAdminStore()
+const agents = ref([])
+const searchQuery = ref('')
+
+const loadAgents = async () => {
+  agents.value = await adminStore.fetchAgents()
+}
+
+onMounted(() => {
+  loadAgents()
+})
+
+const formatRupiah = (angka) => {
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka || 0)
+}
+
+const filteredAgents = computed(() => {
+  if (!searchQuery.value) return agents.value
+  return agents.value.filter(a =>
+      a.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+})
+
+const handleApprove = async (agent) => {
+  const confirm = await Swal.fire({
+    title: 'Setujui Agen?',
+    text: `Beri akses operasi kepada ${agent.name}?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#10b981',
+    confirmButtonText: 'Ya, Setujui'
+  })
+
+  if (confirm.isConfirmed) {
+    const success = await adminStore.approveAgent(agent.id)
+    if (success) {
+      Swal.fire('Berhasil!', 'Agen telah aktif.', 'success')
+      loadAgents()
+    } else {
+      Swal.fire('Gagal', 'Terjadi kesalahan sistem.', 'error')
+    }
+  }
+}
 </script>
 
 <template>
@@ -45,25 +86,25 @@ const agents = [
           </tr>
           </thead>
           <tbody class="divide-y divide-border">
-          <tr v-for="agent in agents" :key="agent.id" class="hover:bg-muted/10 transition-colors">
+          <tr v-for="agent in filteredAgents" :key="agent.id" class="hover:bg-muted/10 transition-colors">
             <td class="py-4 px-6">
               <p class="font-bold text-foreground">{{ agent.name }}</p>
-              <p class="text-xs text-muted-foreground">{{ agent.store }}</p>
+              <p class="text-xs text-muted-foreground">{{ agent.phone }}</p>
             </td>
-            <td class="py-4 px-6 text-muted-foreground text-xs">{{ agent.region }}</td>
-            <td class="py-4 px-6 font-bold" style="font-family: 'DM Mono', monospace;">{{ agent.balance }}</td>
+            <td class="py-4 px-6 text-muted-foreground text-xs">Pusat</td>
+            <td class="py-4 px-6 font-bold" style="font-family: 'DM Mono', monospace;">{{ formatRupiah(agent.balance) }}</td>
             <td class="py-4 px-6">
-                <span
-                    class="px-3 py-1 rounded-full text-xs font-bold"
-                    :class="agent.status === 'Aktif' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'"
-                >
-                  {{ agent.status }}
-                </span>
+        <span
+            class="px-3 py-1 rounded-full text-xs font-bold"
+            :class="agent.is_verified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'"
+        >
+          {{ agent.is_verified ? 'Aktif' : 'Menunggu' }}
+        </span>
             </td>
             <td class="py-4 px-6 text-right">
-              <div v-if="agent.status === 'Menunggu'" class="flex items-center justify-end gap-2">
+              <div v-if="!agent.is_verified" class="flex items-center justify-end gap-2">
                 <button class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Tolak"><XCircle :size="20" /></button>
-                <button class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Setujui"><CheckCircle :size="20" /></button>
+                <button @click="handleApprove(agent)" class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Setujui"><CheckCircle :size="20" /></button>
               </div>
               <button v-else class="p-1.5 text-muted-foreground hover:text-foreground rounded-lg transition-colors">
                 <MoreVertical :size="20" />
@@ -74,6 +115,6 @@ const agents = [
         </table>
       </div>
     </div>
-
   </div>
 </template>
+

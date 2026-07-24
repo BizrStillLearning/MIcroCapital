@@ -35,15 +35,22 @@ export const useAuthStore = defineStore('auth', {
             try {
                 const response = await apiClient.post('/login', { phone, pin })
 
-                this.token = response.data.token
-                this.user = response.data.user
+                const receivedToken = response.data.token
+                const receivedUser = response.data.user
+
+                if (!receivedToken) {
+                    throw new Error("Token tidak diterima dari server.")
+                }
+
+                this.token = receivedToken
+                this.user = receivedUser
 
                 localStorage.setItem('token', this.token)
                 localStorage.setItem('user', JSON.stringify(this.user))
 
                 return true
             } catch (err) {
-                this.error = err.response?.data?.error || 'Gagal terhubung ke server'
+                this.error = err.response?.data?.error || err.message || 'Gagal masuk'
                 return false
             } finally {
                 this.isLoading = false
@@ -75,7 +82,10 @@ export const useAuthStore = defineStore('auth', {
             this.isLoading = true
             this.error = null
             try {
-                const response = await apiClient.post('/admin/login', { email, password })
+                const response = await apiClient.post('/admin/login', {
+                    email: email,
+                    password: password
+                })
 
                 this.token = response.data.token
                 this.user = response.data.user
@@ -84,8 +94,8 @@ export const useAuthStore = defineStore('auth', {
                 localStorage.setItem('user', JSON.stringify(this.user))
 
                 return true
-            } catch (err) {
-                this.error = err.response?.data?.error || 'Email atau Password salah'
+            } catch (error) {
+                this.error = error.response?.data?.error || "Gagal terhubung ke server."
                 return false
             } finally {
                 this.isLoading = false

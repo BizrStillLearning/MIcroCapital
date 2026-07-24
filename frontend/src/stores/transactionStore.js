@@ -33,16 +33,17 @@ export const useTransactionStore = defineStore('transaction', {
             this.isLoading = true
             this.error = null
             try {
-                const response = await apiClient.post('/fund', { campaign_id: campaignId, amount })
+                const response = await apiClient.post('/fund', {
+                    campaign_id: campaignId,
+                    amount: amount
+                })
 
                 const authStore = useAuthStore()
-                if (authStore.user) {
-                    authStore.user.balance = response.data.remaining_balance
-                    localStorage.setItem('user', JSON.stringify(authStore.user))
-                }
+                authStore.user.balance -= amount
+
                 return true
-            } catch (err) {
-                this.error = err.response?.data?.error || 'Gagal melakukan pendanaan'
+            } catch (error) {
+                this.error = error.response?.data?.error || 'Saldo tidak cukup atau transaksi gagal'
                 return false
             } finally {
                 this.isLoading = false

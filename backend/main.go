@@ -2,6 +2,7 @@ package main
 
 import (
 	"backend/config"
+	"backend/middlewares"
 	"backend/routes"
 	"log"
 	"os"
@@ -22,17 +23,7 @@ func main() {
 
 	r := gin.Default()
 
-	r.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
-
+	r.Use(middlewares.CORSMiddleware())
 	routes.SetupRoutes(r)
 
 	r.GET("/api/ping", func(c *gin.Context) {

@@ -93,3 +93,18 @@ func PayInstallment(c *gin.Context) {
 	tx.Commit()
 	c.JSON(http.StatusOK, gin.H{"message": "Cicilan berhasil dibayar", "remaining_balance": user.Balance})
 }
+
+func GetMyLoans(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid := uint(userID.(float64))
+
+	var loans []models.Loan
+	if err := config.DB.Where("user_id = ?", uid).Order("created_at desc").Find(&loans).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data pinjaman"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": loans,
+	})
+}

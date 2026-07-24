@@ -42,6 +42,14 @@ const isModalOpen = ref(false)
 const campaignStore = useCampaignStore()
 const authStore = useAuthStore()
 
+const formatRupiah = (angka) => {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0
+  }).format(angka || 0)
+}
+
 const campaigns = computed(() => campaignStore.campaigns)
 const isVerified = computed(() => authStore.user?.is_verified)
 
@@ -242,3 +250,4 @@ const submitCampaign = async () => {
     </div>
   </Transition>
 </template>
+

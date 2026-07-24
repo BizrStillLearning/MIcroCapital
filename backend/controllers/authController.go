@@ -29,6 +29,38 @@ type UpdatePinInput struct {
 	NewPin     string `json:"new_pin" binding:"required,min=4"`
 }
 
+type AdminLoginInput struct {
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+func AdminLogin(c *gin.Context) {
+	var input AdminLoginInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email dan Password wajib diisi"})
+		return
+	}
+
+	var user models.User
+	if err := config.DB.Where("email = ? AND role = ?", input.Email, "admin").First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Kredensial Admin tidak valid"})
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Password salah"})
+		return
+	}
+
+	token, _ := utils.GenerateToken(user.ID, user.Role)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login Admin berhasil",
+		"token":   token,
+		"user":    user,
+	})
+}
+
 func UpdatePin(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	uid := uint(userID.(float64))
@@ -57,47 +89,6 @@ func UpdatePin(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "PIN berhasil diperbarui"})
-}
-
-type AdminLoginInput struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
-}
-
-func AdminLogin(c *gin.Context) {
-	var input AdminLoginInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Format email atau password salah"})
-		return
-	}
-
-	var user models.User
-	if err := config.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Email tidak terdaftar"})
-		return
-	}
-
-	if user.Password != input.Password {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Password salah"})
-		return
-	}
-
-	if user.Role != "admin" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Akses ditolak. Anda bukan Admin."})
-		return
-	}
-
-	token, err := utils.GenerateToken(user.ID, user.Role)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat token server"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Login Admin berhasil",
-		"token":   token,
-		"user":    user,
-	})
 }
 
 func Register(c *gin.Context) {
@@ -181,5 +172,25 @@ func Login(c *gin.Context) {
 			"role":        user.Role,
 			"is_verified": user.IsVerified,
 		},
+	})
+}
+
+func GetProfile(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Sesi tidak valid"})
+		return
+	}
+
+	uid := uint(userID.(float64))
+	var user models.User
+
+	if err := config.DB.First(&user, uid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Pengguna tidak ditemukan"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user": user,
 	})
 }

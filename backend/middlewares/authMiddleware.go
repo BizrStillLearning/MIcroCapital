@@ -41,7 +41,20 @@ func RequireAuth() gin.HandlerFunc {
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if ok && token.Valid {
-			c.Set("userID", claims["user_id"])
+			var userID interface{}
+			if claims["sub"] != nil {
+				userID = claims["sub"]
+			} else if claims["user_id"] != nil {
+				userID = claims["user_id"]
+			}
+
+			if userID == nil {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Identitas pengguna tidak ditemukan dalam token"})
+				c.Abort()
+				return
+			}
+
+			c.Set("userID", userID)
 			c.Set("userRole", claims["role"])
 			c.Next()
 		} else {

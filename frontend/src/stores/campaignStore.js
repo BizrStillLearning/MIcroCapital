@@ -7,28 +7,32 @@ export const useCampaignStore = defineStore('campaign', {
         isLoading: false,
         error: null
     }),
-
     actions: {
         async fetchCampaigns() {
             this.isLoading = true
+            this.error = null
             try {
                 const response = await apiClient.get('/campaigns')
                 this.campaigns = response.data.data
-            } catch (err) {
-                this.error = 'Gagal memuat daftar kampanye'
+            } catch (error) {
+                this.error = 'Gagal mengambil data kampanye'
+                console.error(error)
             } finally {
                 this.isLoading = false
             }
         },
 
-        async createCampaign(campaignData) {
+        async createCampaign(payload) {
             this.isLoading = true
+            this.error = null
             try {
-                await apiClient.post('/campaigns', campaignData)
-                await this.fetchCampaigns() 
+                const response = await apiClient.post('/campaigns', payload)
+
+                this.campaigns.unshift(response.data.data)
+
                 return true
-            } catch (err) {
-                this.error = 'Gagal membuat kampanye'
+            } catch (error) {
+                this.error = error.response?.data?.error || 'Gagal membuat kampanye'
                 return false
             } finally {
                 this.isLoading = false

@@ -4,7 +4,9 @@ import {
     Users,
     Settings,
     Landmark,
-    ShieldCheck
+    ShieldCheck,
+    BarChart3,
+    UsersRound
 } from '@lucide/vue'
 
 export const getAsideMenu = (role) => {

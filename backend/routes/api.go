@@ -12,28 +12,34 @@ func SetupRoutes(r *gin.Engine) {
 	{
 		api.POST("/register", controllers.Register)
 		api.POST("/login", controllers.Login)
+		api.POST("/admin/login", controllers.AdminLogin)
 
 		api.GET("/campaigns", controllers.GetAllCampaigns)
 
 		protected := api.Group("/")
 		protected.Use(middlewares.RequireAuth())
 		{
-			protected.GET("/profile", func(c *gin.Context) {
-				userID, _ := c.Get("userID")
-				userRole, _ := c.Get("userRole")
-				c.JSON(200, gin.H{"message": "Area terproteksi", "user_id": userID, "role": userRole})
-			})
-
 			protected.POST("/campaigns", controllers.CreateCampaign)
 			protected.POST("/topup", controllers.TopUpBalance)
 			protected.POST("/fund", controllers.FundCampaign)
 			protected.POST("/loans", controllers.ApplyLoan)
+			protected.GET("/loans", controllers.GetMyLoans)
 			protected.POST("/loans/:id/pay", controllers.PayInstallment)
 			protected.POST("/savings/:id/pay", controllers.PaySavingsFee)
 			protected.GET("/agent/unverified-users", controllers.GetUnverifiedUsers)
 			protected.POST("/agent/verify/:id", controllers.VerifyUser)
+			protected.GET("/agent/search-user", controllers.SearchUser)
+			protected.POST("/agent/cash-in", controllers.AgentCashIn)
+			protected.POST("/agent/cash-out", controllers.AgentCashOut)
 			protected.GET("/admin/analytics", controllers.GetPlatformAnalytics)
 			protected.PUT("/profile/pin", controllers.UpdatePin)
+			protected.GET("/transactions/history", controllers.GetHistory)
+			protected.GET("/profile", controllers.GetProfile)
+			protected.POST("/pay-kas", controllers.PayIuranKas)
+			protected.GET("/admin/loans/pending", controllers.GetPendingLoans)
+			protected.POST("/admin/loans/:id/approve", controllers.ApproveLoan)
+			protected.GET("/admin/agents", controllers.GetAgents)
+			protected.POST("/admin/agents/:id/approve", controllers.ApproveAgent)
 		}
 	}
 }

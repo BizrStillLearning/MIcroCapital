@@ -1,28 +1,92 @@
 <script setup>
 import { ref } from 'vue'
 import { Search, ArrowDownLeft, ArrowUpRight, UserCircle2, CheckCircle2, History } from '@lucide/vue'
+import apiClient from '../../api/axios'
+import Swal from 'sweetalert2'
 
 const searchQuery = ref('')
 const isUserFound = ref(false)
+const isSearching = ref(false)
+const foundUser = ref(null)
 
-const searchUser = () => {
-  if (searchQuery.value.length > 8) {
-    isUserFound.value = true
-  } else {
+const agentTransactions = ref([])
+
+const formatRupiah = (angka) => {
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka || 0)
+}
+
+const searchUser = async () => {
+  if (searchQuery.value.length < 10) {
     isUserFound.value = false
+    foundUser.value = null
+    return
+  }
+
+  isSearching.value = true
+  try {
+    const response = await apiClient.get(`/agent/search-user?phone=${searchQuery.value}`)
+    foundUser.value = response.data.data
+    isUserFound.value = true
+  } catch (error) {
+    isUserFound.value = false
+    foundUser.value = null
+  } finally {
+    isSearching.value = false
   }
 }
 
-const foundUser = {
-  name: "Bapak Supardi",
-  phone: "+62 812 3456 7890",
-  status: "Terverifikasi"
+const promptAmount = async (type) => {
+  const title = type === 'in' ? 'Terima Tunai (Isi Saldo)' : 'Berikan Tunai (Tarik)'
+  const text = type === 'in'
+      ? `Masukkan nominal uang tunai yang Anda terima dari ${foundUser.value.name}:`
+      : `Masukkan nominal saldo yang ingin ditarik oleh ${foundUser.value.name}:`
+
+  const { value: amount } = await Swal.fire({
+    title: title,
+    text: text,
+    input: 'number',
+    inputPlaceholder: 'Contoh: 50000',
+    showCancelButton: true,
+    confirmButtonColor: type === 'in' ? '#10b981' : '#ef4444',
+    confirmButtonText: 'Proses Transaksi',
+    inputValidator: (value) => {
+      if (!value || value <= 0) return 'Nominal harus lebih dari 0!'
+    }
+  })
+
+  if (amount) {
+    processTransaction(type, Number(amount))
+  }
 }
 
-const agentTransactions = [
-  { id: 1, type: 'in', client: 'Ibu Siti', phone: '...1234', amount: 'Rp 200.000', time: '14:30' },
-  { id: 2, type: 'out', client: 'Kang Asep', phone: '...9876', amount: 'Rp 500.000', time: '11:15' },
-]
+const processTransaction = async (type, amount) => {
+  const endpoint = type === 'in' ? '/agent/cash-in' : '/agent/cash-out'
+
+  try {
+    const response = await apiClient.post(endpoint, {
+      user_id: foundUser.value.id,
+      amount: amount
+    })
+
+    Swal.fire('Berhasil!', response.data.message, 'success')
+
+    agentTransactions.value.unshift({
+      id: Date.now(),
+      type: type,
+      client: foundUser.value.name,
+      phone: foundUser.value.phone,
+      amount: formatRupiah(amount),
+      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+    })
+
+    searchQuery.value = ''
+    isUserFound.value = false
+    foundUser.value = null
+
+  } catch (error) {
+    Swal.fire('Gagal', error.response?.data?.error || 'Transaksi gagal', 'error')
+  }
+}
 </script>
 
 <template>
@@ -71,16 +135,20 @@ const agentTransactions = [
                   </div>
                 </div>
                 <div class="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full border border-green-200 flex items-center gap-1">
-                  <CheckCircle2 :size="14" /> {{ foundUser.status }}
+                  <CheckCircle2 :size="14" /> {{ foundUser.is_verified ? 'Terverifikasi' : 'Belum Verifikasi' }}
                 </div>
               </div>
 
               <div class="grid grid-cols-2 gap-4 pt-5 border-t border-border">
-                <button class="flex flex-col items-center justify-center gap-2 bg-primary text-primary-foreground p-4 rounded-xl hover:opacity-90 transition-opacity shadow-md shadow-primary/20">
+                <button
+                    @click="promptAmount('in')"
+                    class="flex flex-col items-center justify-center gap-2 bg-primary text-primary-foreground p-4 rounded-xl hover:opacity-90 transition-opacity shadow-md shadow-primary/20">
                   <ArrowDownLeft :size="24" />
                   <span class="font-bold text-sm">Terima Tunai (Isi Saldo)</span>
                 </button>
-                <button class="flex flex-col items-center justify-center gap-2 bg-card border border-border text-foreground p-4 rounded-xl hover:bg-muted transition-colors shadow-sm">
+                <button
+                    @click="promptAmount('out')"
+                    class="flex flex-col items-center justify-center gap-2 bg-card border border-border text-foreground p-4 rounded-xl hover:bg-muted transition-colors shadow-sm">
                   <ArrowUpRight :size="24" />
                   <span class="font-bold text-sm">Berikan Tunai (Tarik)</span>
                 </button>
@@ -124,3 +192,4 @@ const agentTransactions = [
     </div>
   </div>
 </template>
+

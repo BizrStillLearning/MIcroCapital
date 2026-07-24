@@ -1,12 +1,14 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { CreditCard, Plus, ArrowRight, AlertCircle, X } from '@lucide/vue'
 import { useLoanStore } from '../../stores/loanStore'
 import { useAuthStore } from '../../stores/authStore'
+import Swal from 'sweetalert2'
 
 const loanStore = useLoanStore()
 const authStore = useAuthStore()
 
+const activeLoans = computed(() => loanStore.loans)
 const isVerified = computed(() => authStore.user?.is_verified)
 const isModalOpen = ref(false)
 
@@ -14,6 +16,10 @@ const loanForm = ref({
   title: '',
   total_amount: '',
   monthly_installment: ''
+})
+
+onMounted(() => {
+  loanStore.fetchLoans()
 })
 
 const submitLoan = async () => {
@@ -25,28 +31,38 @@ const submitLoan = async () => {
 
   const success = await loanStore.applyLoan(payload)
   if (success) {
-    alert("Pinjaman berhasil diajukan dan menunggu persetujuan Admin!")
+    Swal.fire('Berhasil!', 'Pinjaman diajukan dan menunggu persetujuan Admin!', 'success')
     isModalOpen.value = false
     loanForm.value = { title: '', total_amount: '', monthly_installment: '' }
   } else {
-    alert(loanStore.error)
+    Swal.fire('Gagal', loanStore.error, 'error')
   }
 }
 
 const payLoan = async (loanId) => {
-  const success = await loanStore.payInstallment(loanId)
-  if (success) {
-    alert("Cicilan berhasil dibayar!")
-  } else {
-    alert(loanStore.error)
+  const confirm = await Swal.fire({
+    title: 'Bayar Cicilan?',
+    text: "Saldo Anda akan dipotong untuk bulan ini.",
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Ya, Bayar'
+  })
+
+  if (confirm.isConfirmed) {
+    const success = await loanStore.payInstallment(loanId)
+    if (success) {
+      Swal.fire('Terbayar!', 'Cicilan Anda berhasil dibayarkan.', 'success')
+    } else {
+      Swal.fire('Gagal', loanStore.error, 'error')
+    }
   }
 }
 
 const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka || 0)
 
-const activeLoans = ref([
-  { id: 1, title: 'Modal Pupuk Musim Tanam', total_amount: 2000000, paid_amount: 500000, monthly_installment: 500000, status: 'active', due_date: '2026-08-15' }
-])
+const formatDate = (dateString) => {
+  return new Date(dateString).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })
+}
 </script>
 
 <template>
@@ -74,7 +90,7 @@ const activeLoans = ref([
             </div>
             <div>
               <h3 class="font-bold text-foreground">{{ loan.title }}</h3>
-              <p class="text-xs text-muted-foreground">Jatuh Tempo: {{ loan.due_date }}</p>
+              <p class="text-xs text-muted-foreground">Jatuh Tempo: {{ formatDate(loan.due_date) }}</p>
             </div>
           </div>
           <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-md">Aktif</span>
@@ -113,3 +129,4 @@ const activeLoans = ref([
     </div>
   </div>
 </template>
+

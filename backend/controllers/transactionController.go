@@ -9,7 +9,6 @@ import (
 )
 
 type TopUpInput struct {
-	Phone  string  `json:"phone" binding:"required"`
 	Amount float64 `json:"amount" binding:"required,gt=0"`
 }
 
@@ -18,17 +17,35 @@ type FundInput struct {
 	Amount     float64 `json:"amount" binding:"required,gt=0"`
 }
 
+type PayKasInput struct {
+	GroupID uint    `json:"group_id" binding:"required"`
+	Amount  float64 `json:"amount" binding:"required,gt=0"`
+}
+
 func TopUpBalance(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists || userID == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Sesi tidak valid"})
+		return
+	}
+
+	idFloat, ok := userID.(float64)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Format identitas pengguna rusak"})
+		return
+	}
+	uid := uint(idFloat)
+
 	var input TopUpInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Data input tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Data nominal tidak valid"})
 		return
 	}
 
 	tx := config.DB.Begin()
 
 	var user models.User
-	if err := tx.Where("phone = ?", input.Phone).First(&user).Error; err != nil {
+	if err := tx.First(&user, uid).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusNotFound, gin.H{"error": "Pengguna tidak ditemukan"})
 		return
@@ -45,7 +62,7 @@ func TopUpBalance(c *gin.Context) {
 		UserID:      user.ID,
 		Type:        "topup",
 		Amount:      input.Amount,
-		Description: "Isi saldo melalui Agen",
+		Description: "Simulasi Top-Up Saldo Mandiri",
 	}
 	if err := tx.Create(&transaction).Error; err != nil {
 		tx.Rollback()
@@ -62,8 +79,18 @@ func TopUpBalance(c *gin.Context) {
 }
 
 func FundCampaign(c *gin.Context) {
-	userID, _ := c.Get("userID")
-	uid := uint(userID.(float64))
+	userID, exists := c.Get("userID")
+	if !exists || userID == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Sesi tidak valid"})
+		return
+	}
+
+	idFloat, ok := userID.(float64)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Format identitas pengguna rusak"})
+		return
+	}
+	uid := uint(idFloat)
 
 	var input FundInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -95,7 +122,7 @@ func FundCampaign(c *gin.Context) {
 
 	if campaign.Status != "active" {
 		tx.Rollback()
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Kampanye ini tidak menerima pendanaan"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Kampanye ini sudah tidak menerima pendanaan"})
 		return
 	}
 
@@ -136,5 +163,87 @@ func FundCampaign(c *gin.Context) {
 		"message":           "Pendanaan berhasil",
 		"remaining_balance": user.Balance,
 		"campaign_progress": campaign.CurrentAmount,
+	})
+}
+
+func GetHistory(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists || userID == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Sesi tidak valid atau pengguna belum masuk"})
+		return
+	}
+
+	idFloat, ok := userID.(float64)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Format identitas pengguna pada token rusak"})
+		return
+	}
+
+	uid := uint(idFloat)
+
+	var transactions []models.Transaction
+
+	config.DB.Where("user_id = ?", uid).Order("created_at desc").Limit(5).Find(&transactions)
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": transactions,
+	})
+}
+
+func PayIuranKas(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Sesi tidak valid"})
+		return
+	}
+	uid := uint(userID.(float64))
+
+	var input PayKasInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Data input tidak valid"})
+		return
+	}
+
+	tx := config.DB.Begin()
+
+	var user models.User
+	if err := tx.Set("gorm:query_option", "FOR UPDATE").First(&user, uid).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memuat profil"})
+		return
+	}
+
+	if user.Balance < input.Amount {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Saldo tidak mencukupi untuk bayar iuran"})
+		return
+	}
+
+	user.Balance -= input.Amount
+	if err := tx.Save(&user).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memotong saldo"})
+		return
+	}
+
+	transaction := models.Transaction{
+		UserID:      user.ID,
+		Type:        "pay_dues",
+		Amount:      input.Amount,
+		ReferenceID: input.GroupID,
+		Description: "Iuran Kas Kelompok",
+	}
+
+	if err := tx.Create(&transaction).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mencatat transaksi"})
+		return
+	}
+
+	tx.Commit()
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Iuran Kas berhasil dibayarkan",
+		"new_balance": user.Balance,
 	})
 }
